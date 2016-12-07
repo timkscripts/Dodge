@@ -50,7 +50,7 @@ lastSpawn = 0;
 orbSpace = 320;//200;//320;
 maxOrbSpace = 160;
 // current difficulty
-global.difficulty = 1;
+global.difficulty = 1;//1;
 // Light up the score area
 instance_create(0, -50, obj_light);
 instance_create(20, -50, obj_light);
@@ -62,7 +62,7 @@ highscore_add("You", ini_read_real("Save1","score",0) );
 ini_close();
 //powerup
 global.powerMeter = 0; //max 5
-
+powerMeterDraw = 0; //if 0, not drawn
 //*******************************
 //Global varaibles
 // How fast does the enemy scroll down?
@@ -71,8 +71,10 @@ global.enemySpeed = 4;
 global.score = 0;
 // How much do you increment the score?
 global.scoreInc = 10;
-
-
+// is character invulnerable?
+global.powerupActive = 0; //1 is on
+// start powerup timer for how long you are invulnerable
+powerupTimer = 60*3;
 
 
 
@@ -101,7 +103,7 @@ global.scoreInc = 10;
             <string>/// Main Step code
 // Determine if the game is over
 with (obj_character){
-    if place_meeting(x, y, obj_enemyBlue) {
+    if place_meeting(x, y, obj_enemyBlue) &amp;&amp; (global.powerupActive == 0){
         with (obj_main){
             instance_destroy();
         }
@@ -116,6 +118,9 @@ with (obj_character){
         }
         with (obj_lightRed){
             instance_destroy();
+        }
+        with (obj_powerup) {
+             instance_destroy();
         }
         if (global.score &gt; highscore_value(1)){
             highscore_clear();
@@ -134,7 +139,12 @@ with (obj_character){
     }
     if place_meeting(x, y, obj_powerup) {
         with (obj_powerup) {
-             instance_destroy();
+             if place_meeting(x, y, obj_character) {
+                with (power_light) {
+                    instance_destroy();
+                }
+                instance_destroy();
+             }
         }
         if (global.powerMeter &lt; 5){
             global.powerMeter += 1;
@@ -145,13 +155,17 @@ with (obj_character){
 
 // Enemy spawn logic
 if (lastSpawn &lt;= 0){
-    ran = irandom_range(0, 0);
-    if (ran == 0){//spawn powerup
-        instance_create(ran * charWidth, -1 * charWidth+(charWidth*1.5), obj_powerup);
+    ran = irandom_range(0, 4);
+    if (ran &gt;= 0){//spawn powerup
+        ran = irandom_range(0, 3);
+        instance_create(ran * charWidth, -1 * charWidth-(charWidth*1.5), obj_powerup);
     }
     ran = irandom_range(0, 3);
-    instance_create(ran * charWidth, -1 * charWidth, obj_enemyBlue);
+    if (global.difficulty &lt;= 5){
+        instance_create(ran * charWidth, -1 * charWidth, obj_enemyBlue);
+    }
     if (global.difficulty &gt; 5 &amp;&amp; global.difficulty &lt; 20){
+        instance_create(ran * charWidth, -1 * charWidth, obj_enemyBlue);
         ran2 = irandom_range(0, 1);
         if (ran2 == 1){
             ran2 = irandom_range(0, 3);
@@ -163,6 +177,7 @@ if (lastSpawn &lt;= 0){
         } 
     }//dificulty 5 to 20
      else if (global.difficulty &gt;= 20 &amp;&amp; global.difficulty &lt; 60){
+            instance_create(ran * charWidth, -1 * charWidth, obj_enemyBlue);
             ran2 = irandom_range(0, 3);
             while (ran2 == ran)
             {
@@ -172,7 +187,7 @@ if (lastSpawn &lt;= 0){
      
      } else if (global.difficulty &gt;= 60){
         
-        ran2 = irandom_range(0, 1);
+        ran2 = irandom_range(0, 2);
         if (ran2 == 0){
             ran2 = irandom_range(0, 3);
             while (ran2 == ran)
@@ -181,14 +196,30 @@ if (lastSpawn &lt;= 0){
             }//do while
             instance_create(ran2 * charWidth, -1 * charWidth, obj_enemyBlue);
             maxOrbSpace = 160;
-        } else {
-            ran2 = irandom_range(0, 3);
-            instance_create(ran2 * charWidth, -1 * charWidth - charWidth, obj_enemyBlue);
+        } else if (ran2 == 1){
             ran2 = irandom_range(0, 3);
             instance_create(ran2 * charWidth, -1 * charWidth - (charWidth*1.5), obj_enemyBlue);
             ran2 = irandom_range(0, 3);
             instance_create(ran2 * charWidth, -1 * charWidth - (charWidth*2), obj_enemyBlue);
-            maxOrbSpace = 480;
+            maxOrbSpace = 320;
+        } else if (ran2 == 2){
+            m = 1;
+            ran2 = 0;
+            instance_create(ran2 * charWidth, -1 * charWidth - (charWidth*m), obj_enemyBlue);
+            
+            m += 1;
+            ran2 = 1;
+            instance_create(ran2 * charWidth, -1 * charWidth - (charWidth*m), obj_enemyBlue);
+            
+            m += 1;
+            ran2 = 2;
+            instance_create(ran2 * charWidth, -1 * charWidth - (charWidth*m), obj_enemyBlue);
+            
+            m += 1;
+            ran2 = 1;
+            instance_create(ran2 * charWidth, -1 * charWidth - (charWidth*m), obj_enemyBlue);
+            
+            maxOrbSpace = 640;
         }
      }
      orbSpace -= 2;
@@ -246,10 +277,45 @@ if (currentArea == 0){
     }
 }
 
+//Draw powerup if OK
+if (global.powerMeter == 5 &amp;&amp; powerMeterDraw == 0){
+    powerMeterDraw = 1;
+    powerMeterInstance = instance_create(charposX, charposY, obj_btn);
+    with (powerMeterInstance) {
+        image_xscale = 1;
+        image_yscale = 0.26;
+    }
+}
+if (powerMeterDraw == 1){
+    with (powerMeterInstance) {
+        if mouse_check_button_pressed(mb_left) &amp;&amp; point_in_rectangle(mouse_x, mouse_y, bbox_left, bbox_top, bbox_right, bbox_bottom) {
+            other.powerMeterDraw = 0;
+            global.powerMeter = 0;
+            global.powerupActive = 1;
+            other.powerupTimer = 60*3;
+            instance_destroy();
+        }
+    }
+}
+if (global.powerupActive == 1){
+    powerupTimer -= 1;
+}
+if (powerupTimer &lt;= 0){
+    powerupTimer = 0;
+    global.powerupActive = 0;
+}
 // Every frame adjust the characters position
 with (character){
 x = other.charposX;
 y = other.charposY;
+}
+if (powerMeterDraw == 1){
+    with (powerMeterInstance) {
+    x = other.charposX;
+    y = other.charposY;
+    image_xscale = 0.25;
+    image_yscale = 0.26;
+    }
 }
 // Re-calculate where the light should be
 lightposY = charposY + charWidth;
@@ -291,7 +357,8 @@ draw_text(0, 0, "Score: " + string(global.score));
 
 draw_text(200, 0, "Highscore: " + string(highscore_value(1)));
 
-draw_text(0, 40, "Highscore: " + string(global.powerMeter ));
+draw_text(0, 40, "PowerMeter: " + string(global.powerMeter ) + "/ 5");
+
 </string>
           </argument>
         </arguments>

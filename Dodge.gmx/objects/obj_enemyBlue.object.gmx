@@ -54,6 +54,9 @@ enemy_blue_light = instance_create(x + (global.charWidth/2), y + global.charWidt
 if (y &gt; 510){
     global.score += global.scoreInc;
     global.difficulty += 1;
+    with (enemy_blue_light){
+        instance_destroy();
+    }
     instance_destroy();
 }
 lightX = x + (global.charWidth/2);
